@@ -1,5 +1,5 @@
 #  War and Keys
-## A typing game by YungTreyGames<br><br>
+A typing game by YungTreyGames<br><br>
 Programming and Sound Design by Trey Custodio<br>
 Art by my friend, classmate, and teammate, Colin Bridges
 -
