@@ -1,5 +1,5 @@
 #  War and Keys
-A typing game by YungTreyGames (Trey Custodio)
+A typing game by YungTreyGames (Trey Custodio)<br>
 Art by my classmate and teammate Colin Bridges
 -
 
