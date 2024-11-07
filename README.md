@@ -14,7 +14,7 @@ so type as fast as you can to form words and survive!
 ##  Controls
 1. Keep track of your health in the top-left of the screen
 2. Type the words above each enemy to destroy them
-3. Gain powerups by completing difficult words in yellow text
+3. Gain powerups by typing out difficult words in yellow text
 4. Survive as long as you can!
 
 ##  Credits
