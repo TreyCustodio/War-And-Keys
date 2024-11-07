@@ -18,6 +18,6 @@ so type as fast as you can to form words and survive!
 4. Survive as long as you can!
 
 ##  Credits
-- Designed with [Pygame Framework](https://www.pygame.org/news)<br>
+- Designed with the [Pygame Framework](https://www.pygame.org/news)<br>
 - Text font ripped from [Fire Emblem: The Sacred Stones (2004)](https://serenesforest.net/general/sprite-works/resources/) by the folks at [Serene Forest](https://serenesforest.net/)<br>
 - Art by Colin Bridges<br>
