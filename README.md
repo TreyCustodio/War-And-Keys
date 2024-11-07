@@ -1,6 +1,6 @@
 #  War and Keys
 A typing game by YungTreyGames<br><br>
-Programming by Trey Custodio<br>
+Programming and Sound Design by Trey Custodio<br>
 Art by my friend, classmate, and teammate, Colin Bridges
 -
 
@@ -18,6 +18,6 @@ so type as fast as you can to form words and survive!
 4. Survive as long as you can!
 
 ##  Credits
-Designed entirely with Pygame
-Font ripped from Fire Emblem GBA
-All sprites and art by Colin Bridges
+Designed entirely with Pygame<br>
+Font ripped from Fire Emblem GBA<br>
+All sprites and art by Colin Bridges<br>
