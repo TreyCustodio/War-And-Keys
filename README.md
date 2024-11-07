@@ -1,8 +1,9 @@
 #  War and Keys
 A typing game by YungTreyGames (Trey Custodio)<br>
-Art by my classmate and teammate Colin Bridges
+Art by my friend, classmate, and teammate, Colin Bridges
 -
 
+##  Summary
 You are stranded in the middle of nowhere with nothing but your voice! 
 Viscious creatures are rapidly approaching your position, 
 and the only thing you can do is yell!
@@ -14,3 +15,8 @@ so type as fast as you can to form words and survive!
 2. Type the words above each enemy to destroy them
 3. Gain powerups by completing difficult words in yellow text
 4. Survive as long as you can!
+
+##  Credits
+Designed entirely with Pygame
+Font ripped from Fire Emblem GBA
+All sprites and art by Colin Bridges
