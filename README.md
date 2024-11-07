@@ -19,6 +19,6 @@ so type as fast as you can to form words and survive!
 
 ##  Credits
 - Designed with Pygame framework
-  - [Pygame]https://www.pygame.org/news<br>
+  - [Pygame](https://www.pygame.org/news)<br>
 - Text font ripped from Fire Emblem GBA<br>
 - Art by Colin Bridges<br>
