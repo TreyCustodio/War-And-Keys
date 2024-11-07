@@ -1,7 +1,7 @@
 #  War and Keys
 A typing game by YungTreyGames (Trey Custodio)
 Art by my classmate and teammate Colin Bridges
-----------------------------------------------------------------------
+
 You are stranded in the middle of nowhere with nothing but your voice! 
 Viscious creatures are rapidly approaching your position, 
 and the only thing you can do is yell!
