@@ -27,8 +27,6 @@ class EventManager(object):
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                print(event.key)
-            if event.type == pygame.KEYDOWN:
                 
                 ##  High priority events
                 if event.key == pygame.K_ESCAPE:

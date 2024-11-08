@@ -39,7 +39,7 @@ def main():
                             screen)
         pygame.display.flip()
         gameEngine.draw(drawSurface)
-        gameEngine.drawWipe(drawSurface)
+        gameEngine.drawFade(drawSurface)
         
 
         #   Handle events

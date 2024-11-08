@@ -1,7 +1,9 @@
-import pygame
+from pygame import Rect, Surface, draw, transform
+from pygame.font import SysFont
+
 from . import Drawable, Animated, Walker, Sniper
-from UI import SoundManager, WordManager, EventManager
-from utils import RESOLUTION, FLOOR
+from UI import SoundManager, WordManager, EventManager, HudBuilder
+from utils import RESOLUTION, FLOOR, vec
 
 class Engine:
     """
@@ -15,56 +17,100 @@ class Engine:
 ##  ----------------------------------------------- ##
                 ##  Initialization   ##
 
-    def __init__(self, spawnRate=200):
+    def __init__(self, spawnRate=1.0):
         """
         Initialize the engine's relevant
         variables and objects.
         """
-        #   States
+
+        #   ------------------- #
+        #         States        #
+
         self.inTitle = True
         self.inGame = False
+        self.starting = True
         self.paused = False
+
         self.dead = False
         self.hurting = False
+
         self.sniping = False
         self.upgradeReady = True
-        self.spawnReady = True
-        self.wipe_on = False
-        self.wipe_off = False
+        
+        self.fade_on = False
+        self.fade_off = True
 
-        #   Timers and Counters
-        self.iFrames = 0
-        self.frameCounter = 0
+
+        #   ------------------- #
+        #   Timers and Counters #
+
+        ##  Spawn Rate / Max Enemies
         self.spawnRate = spawnRate
         self.maxEnemies = 20
+
+        ##  Text
+        self.textRow = 0
+        self.textTimer = 0.0
+        
+        ##  Frames
+        self.iFrames = 0
+        self.frameCounter = 0
+
+        ##  Spawning
         self.spawnTimer = 0.0
         self.snipeTimer = 10.0
+        
+        ##  Overlay
+        self.fade_alpha = 255
         self.flashTimer = 0.0
-        self.wipe_alpha = 0
         self.flash_alpha = 200
-        
+    
 
-        #   Drawable Objects
-        self.title_text = pygame.font.SysFont("Garamond", 36).render("War And Keys", False, (200,0,0))
-        self.title = pygame.font.SysFont("Garamond", 16).render("Press any button", False, (255,255,255))
+        #   ------------------- #
+        #     Drawable Objects  #
+
+        ##  Title Screen
+        self.title_text = SysFont("Garamond", 36).render("War And Keys", False, (200,0,0))
+        self.title = SysFont("Garamond", 16).render("Press any button", False, (255,255,255))
         
-        self.background = pygame.Rect((0,0), (RESOLUTION[0], RESOLUTION[1]))
-        self.floor = pygame.Rect((0,RESOLUTION[1] - FLOOR), (RESOLUTION[0], 1))
+        ##  Background and Floor
+        self.background = Rect((0,0), (RESOLUTION[0], RESOLUTION[1]))
+        self.floor = Rect((0,RESOLUTION[1] - FLOOR), (RESOLUTION[0], 1))
+        
+        ##  Pause Screen
         self.flash = Drawable((0,0), "black.png")
-        self.flash.image = pygame.transform.scale(self.flash.image, RESOLUTION)
-        self.flash.image.set_alpha(self.flash_alpha)
+        self.flash.image = transform.scale(self.flash.image, RESOLUTION).set_alpha(self.flash_alpha)
         self.pauseImage = Animated((RESOLUTION[0]//2 - 60//2, RESOLUTION[1]//2 - 16//2), "pause.png", nFrames=1)
 
+        ##  Player
         self.player = Animated((0, RESOLUTION[1] - (FLOOR + 16)), "player.png", nFrames=6)
         
-        #   Hp and Damage
+        ##  Fade
+        self.fade = Surface(vec(*RESOLUTION))
+
+        ##  Read / Go
+        self.ready = Animated()
+        self.go = Animated()
+
+
+        #   ------------------- #
+        #      Hp and Damage    #
+
+        ##  HP
         self.hp = 100
-        self.hpBar = pygame.Rect(1,1, self.hp, 16)
-        self.hpOutline = pygame.Rect(0,0, self.hp+2, 16+2)
+        self.maxHp = 100
+        
+        ##  Damage
         self.damage = 0
         self.damageY = self.player.position[1] - 24
 
-        #   Lists
+        ##  Kill Count
+        self.killed = 0
+
+
+        #   ------------------- #
+        #     Data Structures   #
+
         self.enemies = [] # List containing the enemies
         self.keyBuffer = [] # List containing the player's current string
 
@@ -99,20 +145,14 @@ class Engine:
             del self.keyBuffer[-1]
 
     def spawn(self, force = False):
-        #   Max length is 11
         """
         Spawn an enemy.
-        Param force -> Ignores spawnReady and the length of self.enemies
-        and forces an enemy to spawn.
         """
-        if force or (self.spawnReady and (len(self.enemies) < self.maxEnemies)):
-            if self.sniping:
-                e = Walker(WordManager.getCommon(True), (255,255,70))
-            else:
-                e = Walker(WordManager.getCommon())
-            self.enemies.append(e)
-            self.frameCounter = 0
-            self.spawnReady = False
+        if self.sniping:
+            e = Walker(WordManager.getCommon(True), (255,255,70))
+        else:
+            e = Walker(WordManager.getCommon())
+        self.enemies.append(e)
     
     def spawnSniper(self):
         """
@@ -136,6 +176,7 @@ class Engine:
         #SoundManager.getInstance().playBGM("01_Relax-my-eyes.mp3")
         self.inTitle = False
         self.inGame = True
+        self.fade_on = True
     
     def hurt(self, damage):
         """
@@ -144,7 +185,6 @@ class Engine:
         if not self.hurting:
             self.damageY = self.player.position[1] - 24
             self.hp -= damage
-            self.hpBar = pygame.Rect(1,1,self.hp, 16)
             self.hurting = True
 
 
@@ -192,8 +232,8 @@ class Engine:
                     e.kill()
                 else:
                     self.playSFX("text_2.wav")
+                    self.killed += 1
                     e.kill()
-                    self.spawn()
                 self.keyBuffer = []
                 return
         self.playSFX("text_3.wav")
@@ -222,11 +262,12 @@ class Engine:
         if self.inTitle:
             #   Name of the game
             drawSurf.blit(self.title_text, (RESOLUTION[0] // 2 - self.title_text.get_width() // 2, RESOLUTION[1] // 2 - self.title_text.get_height() * 1.5))
+            
             #   Press any button
             drawSurf.blit(self.title, (RESOLUTION[0] // 2 - self.title.get_width() // 2, RESOLUTION[1] // 2 - self.title.get_height() // 2))
-        
+
         elif self.inGame:
-            #   Background
+            #   Background - First
             self.drawBackground(drawSurf)
             
             #   Floor
@@ -238,16 +279,26 @@ class Engine:
 
             #   Player
             self.player.draw(drawSurf)
-            text = pygame.font.SysFont("Garamond", 24).render(''.join(self.keyBuffer), False, (255,255,255))
-            
-            #text_box = pygame.Rect((self.player.position[0] + 8, self.player.position[1] - 24), ())
+
+            #   Current Text Buffer
+            text, length = WordManager.buildText(''.join(self.keyBuffer), self.textRow + 4)
             drawSurf.blit(text, (self.player.position[0] + 8, self.player.position[1] - 24))
 
-            pygame.draw.rect(drawSurf, (255,255,255), self.hpOutline, 1)
-            pygame.draw.rect(drawSurf, (0,255,0), self.hpBar)
-            
+            #   Damage
             if self.hurting:
                 self.drawDamage(drawSurf)
+
+            #   HUD
+            drawSurf.blit(HudBuilder.getHud(self.hp, self.maxHp, self.killed), (0,1))
+            
+            #   Ready / Go
+            if self.starting:
+                if self.spawnTimer < 0.5:
+                    pass
+                    #self.ready.draw(drawSurf)
+                else:
+                    pass
+                    #self.go.draw(drawSurf)
 
             #   Pause
             if self.paused:
@@ -258,40 +309,101 @@ class Engine:
         """
         Draw the background image.
         """
-        pygame.draw.rect(drawSurf, (0,0,0), self.background)
+        draw.rect(drawSurf, (0,0,0), self.background)
 
     def drawFloor(self, drawSurf):
         """
         Draw the floor image.
         """
-        pygame.draw.rect(drawSurf, (255,255,255), self.floor)
+        draw.rect(drawSurf, (255,255,255), self.floor)
 
     def drawDamage(self, drawSurf):
         """
         Draw red damage numbers.
         """
-        text = pygame.font.SysFont("Garamond", 24).render("-"+str(self.damage), False, (255,50,50))
+        text = SysFont("Garamond", 24).render("-"+str(self.damage), False, (255,50,50))
         drawSurf.blit(text, (self.player.position[0] + 8, self.damageY))
 
-    def drawWipe(self, drawSurf):
+    def drawFade(self, drawSurf):
         """
         Draw black over the entire screen.
         Used for smooth fadeouts.
         """
-        return
-        #pygame.draw.rect(drawSurf, pygame.Color(0,0,0,0), self.background)
+        drawSurf.blit(self.fade, (0,0))
 
 
     ##  ----------------------------------------------- ##
                     ##  Updating    ##
 
+    def update_fade(self, seconds = 0):
+        """
+        Updates the transparency of
+        the fade surface.
+        """
+
+        #   Fading On
+        if self.fade_on:
+            self.fade_alpha += 5
+            if self.fade_alpha >= 255:
+                self.fade.set_alpha(255)
+                self.fade_on = False
+            else:
+                self.fade.set_alpha(self.fade_alpha)
+        
+        #   Fading Off
+        elif self.fade_off:
+            self.fade_alpha -= 5
+            if self.fade_alpha <= 0:
+                self.fade.set_alpha(0)
+                self.fade_off = False
+            else:
+                self.fade.set_alpha(self.fade_alpha)
+
+    def update_spawn(self, seconds):
+        #   Spawn an enemy if the text won't overlap
+        spawn = True
+        for e in self.enemies:
+            if e.position[0] >= RESOLUTION[0] - e.getLength():
+                spawn = False
+                break
+        
+        if spawn:
+            self.spawnTimer += seconds
+            if self.spawnTimer >= self.spawnRate:
+                self.spawnTimer = 0.0
+                self.spawn()
+
+        #   Spawn a sniper upgrade
+        self.frameCounter += 1
+        if not self.sniping and self.upgradeReady and self.frameCounter == 5:
+            self.spawnSniper()
+            self.frameCounter = 0
+            
+        #   Update Snipe Timer
+        if self.sniping:
+            self.snipeTimer -= seconds
+            if self.snipeTimer <= 0.0:
+                self.snipeTimer = 10.0
+                self.sniping = False
+    
     def update(self, seconds):
+
+        self.update_fade(seconds)
+
         #   Update Death
         if self.dead:
             return
         
         if self.inGame:
-            if self.paused:
+
+            if self.starting:
+                if self.fade_off == False:
+                    self.spawnTimer += seconds
+                    if self.spawnTimer >= 2.0:
+                        self.spawnTimer = 0.0
+                        self.starting = False
+                return
+            elif self.paused:
                 self.pauseImage.update(seconds)
                 self.flashTimer += seconds
                 if self.flashTimer >= 0.5:
@@ -303,9 +415,18 @@ class Engine:
                         self.flash_alpha = 150
                         self.flash.image.set_alpha(self.flash_alpha)
                 return
+
+            elif self.starting:
+                self.update_fade()
+                return
             
             #   Update Player
             self.player.update(seconds)
+            self.textTimer += seconds
+            if self.textTimer >= 0.2:
+                self.textRow += 1
+                self.textRow %= 4
+                self.textTimer = 0.0
 
             #   Update I-frames
             if self.hurting:
@@ -333,25 +454,7 @@ class Engine:
                            self.damage = damage
 
             #   Spawn Enemies
-            if not self.spawnReady:
-                self.spawnTimer += seconds
-                if self.spawnTimer >= 0.0:
-                    self.spawnTimer = 0.0
-                    self.spawnReady = True
-
-            self.frameCounter += 1
-            if not self.sniping and self.upgradeReady and self.frameCounter == 5:
-                self.spawnSniper()
-            else:
-                if self.frameCounter >= self.spawnRate:
-                    self.spawn()
-            
-            #   Update Snipe Timer
-            if self.sniping:
-                self.snipeTimer -= seconds
-                if self.snipeTimer <= 0.0:
-                    self.snipeTimer = 10.0
-                    self.sniping = False
+            self.update_spawn(seconds)
 
 
         

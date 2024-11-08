@@ -41,7 +41,8 @@ class SpriteManager(object):
 
       # Static information about the sprite sizes of particular image sheets.
       _SPRITE_SIZES = {
-         "pause.png":(56,14)
+         "pause.png":(56,14),
+         "chars.png":(8,16)
       }
       
       # A default sprite size
@@ -52,7 +53,7 @@ class SpriteManager(object):
                        ]
       
       # A list of images that require to be loaded with a color key
-      _COLOR_KEY = []
+      _COLOR_KEY = ["chars.png"]
       
       def __init__(self):
          # Stores the surfaces indexed based on file name
