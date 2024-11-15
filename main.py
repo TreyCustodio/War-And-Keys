@@ -30,6 +30,7 @@ def main():
     gameEngine = Engine()
     #eventManager = EventManager()
 
+    gameEngine.playSFX("YungTreyGames.wav")
     RUNNING = True
     while RUNNING:
         
@@ -38,7 +39,11 @@ def main():
                             list(map(int, UPSCALED)),
                             screen)
         pygame.display.flip()
-        gameEngine.draw(drawSurface)
+
+        if EventManager.startup:
+            gameEngine.drawLogo(drawSurface)
+        else:
+            gameEngine.draw(drawSurface)
         gameEngine.drawFade(drawSurface)
         
 
@@ -47,11 +52,26 @@ def main():
 
         #   Update
         gameClock = pygame.time.Clock()
+        
         if EventManager.readyToUpdate():
+            
             gameClock.tick(60)
             seconds = gameClock.get_time() / 1000
-            EventManager.updateBuffer(seconds)   
-            gameEngine.update(seconds)
+
+            if EventManager.startup:
+                if EventManager.transitioning:
+                    if gameEngine.fade_on == False:
+                        EventManager.startup = False
+                        EventManager.transitioning = False
+                        gameEngine.fade_off = True
+
+                else:
+                    EventManager.updateTimer(seconds, gameEngine)
+            
+            EventManager.updateBuffer(seconds) 
+            
+            if EventManager.ready:
+                gameEngine.update(seconds)
     
     #   Quit if not running
     pygame.quit()

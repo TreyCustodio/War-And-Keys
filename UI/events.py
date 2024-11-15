@@ -13,6 +13,14 @@ class EventManager(object):
     backspace_timer = 0.0
     backspace_ready = False
 
+    #   Startup
+    startup = True
+    timer = 0.0
+    transitioning = False
+
+    #   Ready
+    ready = True
+
     def __init__(self):
         pass
     
@@ -26,23 +34,44 @@ class EventManager(object):
     def handleEvents(engine):
 
         for event in pygame.event.get():
+
+            if not engine.getReady():
+                return
+            
+            if event.type == pygame.WINDOWMOVED or event.type == pygame.WINDOWLEAVE or not pygame.mouse.get_focused():
+                if not EventManager.startup:
+                    EventManager.ready = False
+                return
+            
+            elif not EventManager.ready:
+                EventManager.ready = True
+
             if event.type == pygame.KEYDOWN:
                 
-                ##  High priority events
+                #  High priority events
+
+                
+                ##  Escape - Quit
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     return
                 
+                ##  Startup - Logo
+                if EventManager.startup:
+                    return
+                
+                ##  Any - Start Game
                 if engine.inTitle:
                     engine.startGame()
                 
+                ##  Enter - Pause Game
                 elif event.key == pygame.K_RETURN:
                     if engine.paused:
                         engine.resume()
                     else:
                         engine.pause()
 
-                ##  Core game controls
+                #  Core game controls
                 elif not engine.paused:
                     if event.key == pygame.K_SPACE:
                         engine.submitString()
@@ -66,6 +95,16 @@ class EventManager(object):
     def readyToUpdate():
         return True
     
+    def updateTimer(seconds, engine):
+        """
+        Update the event manager's timer
+        """
+        EventManager.timer += seconds
+        if EventManager.timer >= 2.0:
+            EventManager.timer = 0.0
+            EventManager.transitioning = True
+            engine.fade_on = True
+
     def updateBuffer(seconds):
         if EventManager.backspace and not EventManager.backspace_ready:
             EventManager.backspace_timer += seconds

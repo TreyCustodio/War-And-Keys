@@ -41,8 +41,9 @@ class SpriteManager(object):
 
       # Static information about the sprite sizes of particular image sheets.
       _SPRITE_SIZES = {
-         "pause.png":(56,14),
-         "chars.png":(8,16)
+         "pause.png":(56*2,14*2),
+         "chars.png":(8,16), 
+         "trey_logo.png":(321,58)
       }
       
       # A default sprite size

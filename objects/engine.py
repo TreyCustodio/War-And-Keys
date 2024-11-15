@@ -1,8 +1,9 @@
 from pygame import Rect, Surface, draw, transform
 from pygame.font import SysFont
+from random import randint
 
-from . import Drawable, Animated, Walker, Sniper
-from UI import SoundManager, WordManager, EventManager, HudBuilder
+from . import Drawable, Animated, Walker, Sniper, Flyer
+from UI import SoundManager, SpriteManager, WordManager, EventManager, HudBuilder
 from utils import RESOLUTION, FLOOR, vec
 
 class Engine:
@@ -28,14 +29,14 @@ class Engine:
 
         self.inTitle = True
         self.inGame = False
-        self.starting = True
+        self.starting = False
         self.paused = False
 
         self.dead = False
         self.hurting = False
 
         self.sniping = False
-        self.upgradeReady = True
+        self.upgradeReady = False
         
         self.fade_on = False
         self.fade_off = True
@@ -55,6 +56,7 @@ class Engine:
         ##  Frames
         self.iFrames = 0
         self.frameCounter = 0
+        self.title_row = 0
 
         ##  Spawning
         self.spawnTimer = 0.0
@@ -63,8 +65,10 @@ class Engine:
         ##  Overlay
         self.fade_alpha = 255
         self.flashTimer = 0.0
-        self.flash_alpha = 200
-    
+        self.flash_alpha = 100
+
+        ##  Sound
+        self.sound_int = 0
 
         #   ------------------- #
         #     Drawable Objects  #
@@ -74,16 +78,23 @@ class Engine:
         self.title = SysFont("Garamond", 16).render("Press any button", False, (255,255,255))
         
         ##  Background and Floor
-        self.background = Rect((0,0), (RESOLUTION[0], RESOLUTION[1]))
-        self.floor = Rect((0,RESOLUTION[1] - FLOOR), (RESOLUTION[0], 1))
+        self.background = Surface(vec(*RESOLUTION))
+        self.background.fill((0,50,0))
+
+        self.floor = Surface((RESOLUTION[0], FLOOR))
+        self.floor.fill((255,255,255))
+        self.floor.fill((0,0,0), Rect(1,1,RESOLUTION[0]-2,FLOOR - 2))
         
+
+        ##  Logo
+        self.logo = SpriteManager.getInstance().getSprite("trey_logo.png")
         ##  Pause Screen
-        self.flash = Drawable((0,0), "black.png")
-        self.flash.image = transform.scale(self.flash.image, RESOLUTION).set_alpha(self.flash_alpha)
+        self.flash = Surface(vec(*RESOLUTION))
+        self.flash.set_alpha(100)
         self.pauseImage = Animated((RESOLUTION[0]//2 - 60//2, RESOLUTION[1]//2 - 16//2), "pause.png", nFrames=1)
 
         ##  Player
-        self.player = Animated((0, RESOLUTION[1] - (FLOOR + 16)), "player.png", nFrames=6)
+        self.player = Animated((16*3, RESOLUTION[1] - (FLOOR + 16)), "player.png", nFrames=6)
         
         ##  Fade
         self.fade = Surface(vec(*RESOLUTION))
@@ -97,8 +108,8 @@ class Engine:
         #      Hp and Damage    #
 
         ##  HP
-        self.hp = 100
-        self.maxHp = 100
+        self.hp = 50
+        self.maxHp = 50
         
         ##  Damage
         self.damage = 0
@@ -113,12 +124,15 @@ class Engine:
 
         self.enemies = [] # List containing the enemies
         self.keyBuffer = [] # List containing the player's current string
-
+        self.text = [] # List containing text obtained from the enemy
 
 
 ##  ----------------------------------------------- ##
             ##  Auxillaury Routines   ##
 
+    def getReady(self):
+        return (not self.fade_off) and (not self.fade_on) and (not self.starting)
+    
     def pause(self):
         """
         Pause the game.
@@ -132,8 +146,8 @@ class Engine:
         """
         self.playSFX("pause.wav")
         self.paused = False
-        self.flash_alpha = 200
-        self.flash.image.set_alpha(200)
+        self.flash_alpha = 100
+        self.flash.set_alpha(100)
         self.flashTImer = 0.0
     
     def backSpace(self):
@@ -148,10 +162,18 @@ class Engine:
         """
         Spawn an enemy.
         """
-        if self.sniping:
-            e = Walker(WordManager.getCommon(True), (255,255,70))
+        rand = randint(0,4)
+        
+        if rand == 0:
+            e = Walker(WordManager.getCommon())
+        elif rand == 1:
+            e = Flyer(WordManager.getCommon())
         else:
             e = Walker(WordManager.getCommon())
+
+        if self.sniping:
+            e.snipe()
+
         self.enemies.append(e)
     
     def spawnSniper(self):
@@ -175,8 +197,9 @@ class Engine:
         self.playSFX("pause.wav")
         #SoundManager.getInstance().playBGM("01_Relax-my-eyes.mp3")
         self.inTitle = False
-        self.inGame = True
         self.fade_on = True
+        self.starting = True
+        self.frameCounter = 0
     
     def hurt(self, damage):
         """
@@ -229,11 +252,13 @@ class Engine:
                 if e.type == "snipe":
                     self.playSFX("text_2.wav")
                     self.snipe()
+                    
                     e.kill()
                 else:
                     self.playSFX("text_2.wav")
                     self.killed += 1
                     e.kill()
+                    self.playSFX("death.wav")
                 self.keyBuffer = []
                 return
         self.playSFX("text_3.wav")
@@ -246,8 +271,8 @@ class Engine:
         """
         self.sniping = True
         for e in self.enemies:
-            e.string = e.string[0]
-            e.color = (255,255,70)
+            e.snipe()
+            
 
         
 
@@ -260,11 +285,17 @@ class Engine:
         to the drawSurf.
         """
         if self.inTitle:
+            row = self.title_row
+
             #   Name of the game
-            drawSurf.blit(self.title_text, (RESOLUTION[0] // 2 - self.title_text.get_width() // 2, RESOLUTION[1] // 2 - self.title_text.get_height() * 1.5))
+            title, title_len = WordManager.buildText("War and Keys", row, scale=True, title=True)
+            drawSurf.blit(title, (RESOLUTION[0] // 2 - title_len * 2, 64))
             
             #   Press any button
-            drawSurf.blit(self.title, (RESOLUTION[0] // 2 - self.title.get_width() // 2, RESOLUTION[1] // 2 - self.title.get_height() // 2))
+            press, press_len = WordManager.buildText("Press any Button", row + 8, scale=True )
+            drawSurf.blit(press, (RESOLUTION[0] // 2 - press_len, 144))
+            
+            
 
         elif self.inGame:
             #   Background - First
@@ -282,40 +313,65 @@ class Engine:
 
             #   Current Text Buffer
             text, length = WordManager.buildText(''.join(self.keyBuffer), self.textRow + 4)
-            drawSurf.blit(text, (self.player.position[0] + 8, self.player.position[1] - 24))
+            drawSurf.blit(text, (8, self.player.position[1] - 24))
 
             #   Damage
             if self.hurting:
                 self.drawDamage(drawSurf)
 
             #   HUD
-            drawSurf.blit(HudBuilder.getHud(self.hp, self.maxHp, self.killed), (0,1))
+            drawSurf.blit(HudBuilder.getHud(self.hp, self.maxHp, self.killed), (8,16))
             
+            if self.sniping:
+                snipe_time, snipe_len = WordManager.buildText(str(int(self.snipeTimer)), 8)
+                
+                drawSurf.blit(snipe_time, vec(32, 256))
+
             #   Ready / Go
             if self.starting:
-                if self.spawnTimer < 0.5:
-                    pass
-                    #self.ready.draw(drawSurf)
+                if self.spawnTimer == 0.0:
+                    return
+                
+                elif self.spawnTimer > 0.0 and self.spawnTimer < 0.5:
+                    if self.sound_int == 0:
+                        self.playSFX("Ready.wav")
+                        self.sound_int += 1
+
+                    surf, x = WordManager.buildText("Ready?", 2, scale = True)
+                    drawSurf.blit(surf, vec(RESOLUTION[0] // 2 - x // 2, RESOLUTION[1] // 2 - 8))
+
+                elif self.spawnTimer > 0.5 and self.spawnTimer < 0.55:
+                    return
+                
                 else:
+                    if self.sound_int == 1:
+                        self.playSFX("Go.wav")
+                        self.sound_int = 0
+                    surf, x = WordManager.buildText("GO!", 6, scale = True)
+                    drawSurf.blit(surf, vec(RESOLUTION[0] // 2 - x // 2, RESOLUTION[1] // 2 - 8))
                     pass
-                    #self.go.draw(drawSurf)
 
             #   Pause
             if self.paused:
-                self.flash.draw(drawSurf)
+                drawSurf.blit(self.flash, (0,0))
                 self.pauseImage.draw(drawSurf)
+                full, x = WordManager.buildText("Toggle Fullscreen", 2, scale=True)
+                drawSurf.blit(full, (RESOLUTION[0] // 2 - x//2, RESOLUTION[1]//2 - 8))
+
+    def drawLogo(self, drawSurf):
+        drawSurf.blit(self.logo, (RESOLUTION[0] // 2 - self.logo.get_width() // 2, RESOLUTION[1] // 2 - self.logo.get_height() // 2))
 
     def drawBackground(self, drawSurf):
         """
         Draw the background image.
         """
-        draw.rect(drawSurf, (0,0,0), self.background)
+        drawSurf.blit(self.background, (0,0))
 
     def drawFloor(self, drawSurf):
         """
         Draw the floor image.
         """
-        draw.rect(drawSurf, (255,255,255), self.floor)
+        drawSurf.blit(self.floor, (0, RESOLUTION[1] - FLOOR))
 
     def drawDamage(self, drawSurf):
         """
@@ -345,6 +401,7 @@ class Engine:
         if self.fade_on:
             self.fade_alpha += 5
             if self.fade_alpha >= 255:
+                self.fade_alpha = 255
                 self.fade.set_alpha(255)
                 self.fade_on = False
             else:
@@ -355,6 +412,7 @@ class Engine:
             self.fade_alpha -= 5
             if self.fade_alpha <= 0:
                 self.fade.set_alpha(0)
+                self.fade_alpha = 0
                 self.fade_off = False
             else:
                 self.fade.set_alpha(self.fade_alpha)
@@ -374,50 +432,70 @@ class Engine:
                 self.spawn()
 
         #   Spawn a sniper upgrade
-        self.frameCounter += 1
         if not self.sniping and self.upgradeReady and self.frameCounter == 5:
             self.spawnSniper()
             self.frameCounter = 0
+        else:
+            self.frameCounter += 1
+      
+
             
         #   Update Snipe Timer
         if self.sniping:
             self.snipeTimer -= seconds
+
             if self.snipeTimer <= 0.0:
+
+                ##  Stop Sniping
                 self.snipeTimer = 10.0
                 self.sniping = False
+                self.upgradeReady = True
     
     def update(self, seconds):
+        print(self.keyBuffer)
 
+        #   Update the fade
         self.update_fade(seconds)
 
         #   Update Death
         if self.dead:
             return
         
-        if self.inGame:
+        #   Update Title Text
+        if self.inTitle:
+            self.frameCounter += 1
 
+            if self.frameCounter == 15:
+                self.frameCounter = 0
+                self.title_row += 1
+                self.title_row %= 4
+
+        #   Update in-game
+        if self.inGame:
+            
+            #   Ready / Go!
             if self.starting:
                 if self.fade_off == False:
                     self.spawnTimer += seconds
-                    if self.spawnTimer >= 2.0:
+                    if self.spawnTimer >= 1.0:
                         self.spawnTimer = 0.0
                         self.starting = False
                 return
-            elif self.paused:
+
+            #   Paused Game
+            if self.paused:
                 self.pauseImage.update(seconds)
+
+                ##  Flash
                 self.flashTimer += seconds
                 if self.flashTimer >= 0.5:
                     self.flashTimer = 0.0
-                    if self.flash_alpha == 150:
-                        self.flash_alpha = 200
-                        self.flash.image.set_alpha(self.flash_alpha)
-                    else:
+                    if self.flash_alpha == 100:
                         self.flash_alpha = 150
-                        self.flash.image.set_alpha(self.flash_alpha)
-                return
-
-            elif self.starting:
-                self.update_fade()
+                        self.flash.set_alpha(self.flash_alpha)
+                    else:
+                        self.flash_alpha = 100
+                        self.flash.set_alpha(self.flash_alpha)
                 return
             
             #   Update Player
@@ -455,6 +533,18 @@ class Engine:
 
             #   Spawn Enemies
             self.update_spawn(seconds)
+        
+
+        #   Change state once the title screen 
+        #   is completely faded to black
+        elif self.starting:
+
+            if self.fade_on == False:
+                self.inGame = True
+                self.fade_off = True
+
+            return
+
 
 
         

@@ -1,4 +1,4 @@
-from pygame import Surface
+from pygame import Surface, transform
 from os.path import join
 from random import randint
 from UI import SpriteManager
@@ -32,6 +32,7 @@ class WordManager:
         
         if sniping:
             return line[0].upper()
+        
         else:
             string = line[0].upper() + line[1:line.index("\n")]
             return string
@@ -49,7 +50,7 @@ class WordManager:
         string = line[0].upper() + line[1:line.index("\n")]
         return string
 
-    def buildText(text, row):
+    def buildText(text, row, scale = False, getLen = True, title = False):
         """
         Create a surface containing
         some text.
@@ -86,6 +87,21 @@ class WordManager:
             x += dx
             dx = 8
         
-        #   Return the surface and the length
-        return surf,x
+
+        ##  Return the scaled surface
+        if scale:
+            if getLen:
+                if title:
+                    return transform.scale(surf, (surf.get_width() * 4, surf.get_height() * 4)), x
+                else:
+                    return transform.scale2x(surf), x
+            else:
+                return transform.scale2x(surf)
+        
+        ##  Return the unscaled surface
+        else:
+            if getLen:
+                return surf,x
+            else:
+                return surf
     

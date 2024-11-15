@@ -33,7 +33,8 @@ class Enemy(Animated):
         self.attacking = False   # Attacking the player
         self.dead   = False # Ready to disappear
         self.dying  = False # Death animation
-        
+        self.sniped = False
+
         self.buildString()
 
     def getLength(self):
@@ -49,6 +50,11 @@ class Enemy(Animated):
         """
         self.vel = vec(0,0)
         self.attacking = True
+
+    def snipe(self):
+        self.string = self.string[0]
+        self.sniped = True
+        self.buildString()
 
     @abstractmethod
     def kill(self):
@@ -69,7 +75,11 @@ class Enemy(Animated):
         """
         Build the enemy's text surface.
         """
-        self.textSurf, self.text_length = WordManager.buildText(self.string, self.textRow)
+        if self.sniped:
+            self.textSurf, self.text_length = WordManager.buildText(self.string, self.textRow + 8)
+        
+        else:
+            self.textSurf, self.text_length = WordManager.buildText(self.string, self.textRow)
 
 
     def draw(self, drawSurface, drawHitbox=False, use_camera=True):
@@ -124,7 +134,7 @@ class Enemy(Animated):
 class Walker(Enemy):
     def __init__(self, string = "a", color = (255,255,255)):
         super().__init__(vec(RESOLUTION[0], RESOLUTION[1] - FLOOR - 16), "walker.png", (0,0), velocity=vec(-50,0), color=color, string=string)
-
+    
     @override
     def kill(self):
         """
@@ -138,13 +148,20 @@ class Walker(Enemy):
 
 
 class Flyer(Enemy):
-    def __init__(self, string = "a", color=(255, 255, 255), speed = 50):
-        super().__init__(vec(RESOLUTION[0], 20), "flyer.png", (0,0), color=color)
-        self.velocity = vec(speed, speed)
+    def __init__(self, string = "a", color=(255, 255, 255), speed = 75):
+        super().__init__(vec(RESOLUTION[0], 32), "flyer.png", (0,0), color=color, string=string)
         self.speed = speed
-    
+        self.frame_counter = 0  #   Change vel every few frames
+        self.dive_tick = 0
+        self.vel = vec(-self.speed, self.speed)
+
+        self.diving = False
+
     def setVelocity(self):
-        self.velocity = vec(self.speed, self.speed)
+        if self.vel[1] > 0:
+            self.vel = vec(-self.speed, -self.speed)
+        else:
+            self.vel = vec(-self.speed, self.speed)
 
     @override
     def kill(self):
@@ -156,6 +173,37 @@ class Flyer(Enemy):
     @override
     def getDamage(self):
         return 8
+
+    @override
+    def update(self, seconds, key=None):
+
+        #   Flyers move in a V shape and then dive for the player
+        if not self.diving:
+            self.frame_counter += 1
+            if self.frame_counter == 20:
+
+                ##  Reset the frame counter
+                ##  Increment the dive tick
+                self.frame_counter = 0
+                
+                if self.position[0] <= 250:
+
+                    ##   Dive
+                    self.diving = True
+                    d_x = self.position[0] - 16*3
+                    d_y = self.position[1] - (RESOLUTION[1] - (FLOOR + 16))
+                    
+                    
+                    self.vel = vec(-d_x, -d_y)
+                    #self.vel = vec(-self.speed, self.speed)
+                
+                else:
+
+                    ##  Change the velocity
+                    self.setVelocity()
+        
+        ##  Proceed with regular update routine
+        super().update(seconds, key)
     
     
 class Sniper(Walker):
