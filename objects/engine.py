@@ -18,7 +18,7 @@ class Engine:
 ##  ----------------------------------------------- ##
                 ##  Initialization   ##
 
-    def __init__(self, spawnRate=1.0):
+    def __init__(self, spawnRate=1.5):
         """
         Initialize the engine's relevant
         variables and objects.
