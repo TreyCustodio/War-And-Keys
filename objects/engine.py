@@ -163,7 +163,7 @@ class Engine:
         """
         Spawn an enemy.
         """
-        rand = randint(0,4)
+        rand = randint(0,1)
         
         if rand == 0:
             e = Walker(WordManager.getCommon())
