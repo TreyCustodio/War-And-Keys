@@ -2,7 +2,7 @@ from pygame import Rect, Surface, draw, transform
 from pygame.font import SysFont
 from random import randint
 
-from . import Drawable, Animated, Walker, Sniper, Flyer
+from . import Drawable, Animated, Walker, Sniper, Flyer, Bullet
 from UI import SoundManager, SpriteManager, WordManager, EventManager, HudBuilder
 from utils import RESOLUTION, FLOOR, vec
 
@@ -74,34 +74,34 @@ class Engine:
         #     Drawable Objects  #
 
         ##  Title Screen
-        self.title_text = SysFont("Garamond", 36).render("War And Keys", False, (200,0,0))
-        self.title = SysFont("Garamond", 16).render("Press any button", False, (255,255,255))
-        
+        #self.title_text = SysFont("Garamond", 36).render("War And Keys", False, (200,0,0))
+        #self.title = SysFont("Garamond", 16).render("Press any button", False, (255,255,255))
+        self.title = transform.scale(SpriteManager.getInstance().getSprite("title.png"), RESOLUTION)
+
         ##  Background and Floor
-        self.background = Surface(vec(*RESOLUTION))
-        self.background.fill((0,50,0))
+        self.background = transform.scale2x(SpriteManager.getInstance().getSprite("bg_1.png"))
 
         self.floor = Surface((RESOLUTION[0], FLOOR))
         self.floor.fill((255,255,255))
         self.floor.fill((0,0,0), Rect(1,1,RESOLUTION[0]-2,FLOOR - 2))
+        self.floor.set_alpha(0)
         
 
         ##  Logo
         self.logo = SpriteManager.getInstance().getSprite("trey_logo.png")
+
         ##  Pause Screen
         self.flash = Surface(vec(*RESOLUTION))
         self.flash.set_alpha(100)
-        self.pauseImage = Animated((RESOLUTION[0]//2 - 60//2, RESOLUTION[1]//2 - 16//2), "pause.png", nFrames=1)
+        self.pauseImage = Drawable((RESOLUTION[0]//2 - 60//2, RESOLUTION[1]//2 - 16//2), "pause.png")
 
         ##  Player
-        self.player = Animated((16*3, RESOLUTION[1] - (FLOOR + 16)), "player.png", nFrames=6)
+        self.player = Animated((16*3, RESOLUTION[1] - (FLOOR + 32)), "player_1.png")
+        self.player.addState("shooting", fileName="player_2.png", nFrames=3, fps=16)
+        
         
         ##  Fade
         self.fade = Surface(vec(*RESOLUTION))
-
-        ##  Read / Go
-        self.ready = Animated()
-        self.go = Animated()
 
 
         #   ------------------- #
@@ -125,6 +125,7 @@ class Engine:
         self.enemies = [] # List containing the enemies
         self.keyBuffer = [] # List containing the player's current string
         self.text = [] # List containing text obtained from the enemy
+        self.bullets = [] # List containing bullets
 
 
 ##  ----------------------------------------------- ##
@@ -248,17 +249,23 @@ class Engine:
         using the player's current string.
         """
         for e in self.enemies:
-            if e.string == ''.join(self.keyBuffer):
+
+            if e.string == ''.join(self.keyBuffer) and not (e.dying or e.dead or (e.attacking and e.attack_done)):
+
+                ##  Sniper Enemy Killed
                 if e.type == "snipe":
                     self.playSFX("text_2.wav")
                     self.snipe()
-                    
+                    self.player.play_animation("shooting")
                     e.kill()
+
+                ##  Regular Enemy Killed
                 else:
                     self.playSFX("text_2.wav")
-                    self.killed += 1
-                    e.kill()
+                    self.player.play_animation("shooting")
+                    self.bullets.append(Bullet(vec(self.player.position[0] + 16, self.player.position[1]), e))
                     self.playSFX("death.wav")
+
                 self.keyBuffer = []
                 return
         self.playSFX("text_3.wav")
@@ -274,8 +281,6 @@ class Engine:
             e.snipe()
             
 
-        
-
     ##  ----------------------------------------------- ##
                     ##  Drawing   ##
 
@@ -285,16 +290,21 @@ class Engine:
         to the drawSurf.
         """
         if self.inTitle:
+
+            drawSurf.blit(self.title, (0,0))
+
+            
             row = self.title_row
 
             #   Name of the game
-            title, title_len = WordManager.buildText("War and Keys", row, scale=True, title=True)
-            drawSurf.blit(title, (RESOLUTION[0] // 2 - title_len * 2, 64))
+            #title, title_len = WordManager.buildText("War and Keys", row, scale=True, title=True)
+            #drawSurf.blit(title, (RESOLUTION[0] // 2 - title_len * 2, 64))
             
             #   Press any button
             press, press_len = WordManager.buildText("Press any Button", row + 8, scale=True )
-            drawSurf.blit(press, (RESOLUTION[0] // 2 - press_len, 144))
+            drawSurf.blit(press, (RESOLUTION[0] // 2 - press_len, 180))
             
+        
             
 
         elif self.inGame:
@@ -304,6 +314,10 @@ class Engine:
             #   Floor
             self.drawFloor(drawSurf)
             
+            #   Bullets
+            for b in self.bullets:
+                b.draw(drawSurf)
+
             #   Enemies
             for e in self.enemies:
                 e.draw(drawSurf)
@@ -355,8 +369,6 @@ class Engine:
             if self.paused:
                 drawSurf.blit(self.flash, (0,0))
                 self.pauseImage.draw(drawSurf)
-                full, x = WordManager.buildText("Toggle Fullscreen", 2, scale=True)
-                drawSurf.blit(full, (RESOLUTION[0] // 2 - x//2, RESOLUTION[1]//2 - 8))
 
     def drawLogo(self, drawSurf):
         drawSurf.blit(self.logo, (RESOLUTION[0] // 2 - self.logo.get_width() // 2, RESOLUTION[1] // 2 - self.logo.get_height() // 2))
@@ -452,8 +464,6 @@ class Engine:
                 self.upgradeReady = True
     
     def update(self, seconds):
-        print(self.keyBuffer)
-
         #   Update the fade
         self.update_fade(seconds)
 
@@ -516,20 +526,43 @@ class Engine:
                     self.damage = 0
                     self.damageY = 0
             
+            #   Update Bullets
+            for b in self.bullets:
+                b.update(seconds)
+                ##  Kill Enemy
+                for e in self.enemies:
+                    if b.enemy == e and b.position[0] >= e.position[0]:
+                        self.killed += 1
+                        e.kill()
+                        self.bullets.pop(self.bullets.index(b))
+                
             #   Update Enemies
             damage = 0
             if self.enemies:
                 for e in self.enemies:
                     if e.dead:
                         del self.enemies[self.enemies.index(e)]
+                        for b in self.bullets:
+                            if b.enemy == e:
+                                del self.bullets[self.bullets.index(b)]
+                                break
+                            
+
+                    elif e.attacking:
+                        if e.attack_done:
+                            damage = e.getDamage()
+                            self.hurt(damage)
+                            self.damage = damage
+                            e.attack_done = False
+                        else:
+                            e.update(seconds)
                     else:
-                       e.update(seconds)
-                       #    Check if enemy is attacking the player
-                       if e.position[0] <= self.player.position[0] + self.player.getSize()[0]:
-                           e.kill()
-                           damage = e.getDamage()
-                           self.hurt(damage)
-                           self.damage = damage
+                        e.update(seconds)
+
+                        #    Check if enemy is attacking the player
+                        if e.position[0] <= self.player.position[0] + self.player.getSize()[0]:
+                            if not e.dying:
+                                e.attack()
 
             #   Spawn Enemies
             self.update_spawn(seconds)

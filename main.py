@@ -30,7 +30,7 @@ def main():
     gameEngine = Engine()
     #eventManager = EventManager()
 
-    gameEngine.playSFX("YungTreyGames.wav")
+    #gameEngine.playSFX("YungTreyGames.wav")
     RUNNING = True
     while RUNNING:
         

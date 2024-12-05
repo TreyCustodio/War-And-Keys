@@ -3,4 +3,4 @@ from . import vec
 RESOLUTION = vec(640 // 1.2, 360 // 1.2)
 SCALE = 1
 UPSCALED = RESOLUTION * SCALE
-FLOOR = 16*4
+FLOOR = 26

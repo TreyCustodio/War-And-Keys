@@ -14,7 +14,7 @@ class EventManager(object):
     backspace_ready = False
 
     #   Startup
-    startup = True
+    startup = False
     timer = 0.0
     transitioning = False
 
