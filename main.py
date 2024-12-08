@@ -4,34 +4,35 @@ from objects import Engine
 from UI import EventManager
 from utils import RESOLUTION, UPSCALED
 
+import asyncio
 
 
 
-def main():
-    #   Initialize modules
-    pygame.init()
-    pygame.font.init()
+#   Initialize modules
+pygame.init()
+pygame.font.init()
 
-    #   Set the screen up
-    flags = pygame.SCALED #| pygame.NOFRAME | pygame.FULLSCREEN
-    screen = pygame.display.set_mode(list(map(int, UPSCALED)), flags=flags)
-    drawSurface = pygame.Surface(list(map(int, RESOLUTION)))
+#   Set the screen up
+flags = pygame.SCALED #| pygame.NOFRAME | pygame.FULLSCREEN
+screen = pygame.display.set_mode(list(map(int, UPSCALED)), flags=flags)
+drawSurface = pygame.Surface(list(map(int, RESOLUTION)))
 
-    #   Set mouse visible
-    pygame.mouse.set_visible(True)
+#   Set mouse visible
+pygame.mouse.set_visible(True)
 
-    #   Set application icon
-    iconSurf = pygame.Surface((32,32))
-    image = pygame.image.load("displayIcon.png").convert()
-    iconSurf.blit(image, (0,0))
-    pygame.display.set_icon(iconSurf)
+#   Set application icon
+iconSurf = pygame.Surface((32,32))
+image = pygame.image.load("displayIcon.png").convert()
+iconSurf.blit(image, (0,0))
+pygame.display.set_icon(iconSurf)
+
+#   Initialize the engine and eventManager
+gameEngine = Engine()
+#eventManager = EventManager()
+RUNNING = True
+
+async def main():
     
-    #   Initialize the engine and eventManager
-    gameEngine = Engine()
-    #eventManager = EventManager()
-
-    #gameEngine.playSFX("YungTreyGames.wav")
-    RUNNING = True
     while RUNNING:
         
         #   Draw
@@ -72,9 +73,10 @@ def main():
             
             if EventManager.ready:
                 gameEngine.update(seconds)
-    
+        await asyncio.sleep(0)
+        
     #   Quit if not running
     pygame.quit()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
