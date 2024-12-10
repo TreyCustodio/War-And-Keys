@@ -5,11 +5,11 @@ Art by my friend, classmate, and teammate, Colin Bridges
 
 
 ##  Summary
-You are stranded in the middle of nowhere with nothing but your voice! 
-Viscious creatures are rapidly approaching your position, 
-and the only thing you can do is yell!
-Luckily, the creatures are sensitive to sound,
-so type as fast as you can to form words and survive!
+You are stranded in the middle of nowhere with naught but your gun.
+Need ammo? No problem!
+Just type as fast as you can to form words and defeat
+the viscious foes approaching your position.
+
 
 ##  Controls
 1. Keep track of your health in the top-left of the screen
